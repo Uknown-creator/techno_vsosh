@@ -34,3 +34,16 @@ def select_stage():
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb)
     return keyboard
 
+
+def yes_or_no():
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(
+        text=emoji.emojize("Да"),
+        callback_data="yes"
+    ))
+    builder.add(types.InlineKeyboardButton(
+        text=emoji.emojize("Нет"),
+        callback_data="no"
+    ))
+    builder.adjust(2)
+    return builder.as_markup()

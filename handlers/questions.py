@@ -21,13 +21,9 @@ async def cmd_start(message: Message):
             "Поздравляем, теперь вам доступны материалы для подготовки по вашему направлению\n\nВоспользуйтесь нижней "
             "клавиатурой для выбора материалов", reply_markup=select_stage()
         )
-        if roles[0] == 1:
-            await message.answer(
-                "Приветствую, администратор!\n\n/post_news - Запостить жабу\n/add_admin - Добавить "
-                "жабу\n/delete_admin - Удалить жабу\n/check_log - Смотрим на жаб\n/return_users - Вывод "
-                "жабобят\n/return_admins - Вывод жаб\n/edit_user - редактор жаб\n\nБот работает"
-            )
     else:
+        # auth
+
         await message.answer(
             "Выбери свое направление",
             reply_markup=select_role()
@@ -43,10 +39,7 @@ async def query(callback: types.CallbackQuery):
         "Поздравляем, теперь вам доступны материалы для подготовки по вашему направлению\n\nВоспользуйтесь нижней "
         "клавиатурой для выбора материалов", reply_markup=select_stage()
     )
-    await callback.answer(
-        text="",
-        show_alert=True
-    )
+    await callback.answer()
 
 
 @router.message(F.text.lower() == "теория")

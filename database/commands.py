@@ -16,7 +16,7 @@ def add_admin(user_id: int, username: str, olymp_role: str = "tt"):
         cur.execute("UPDATE users SET bot_role = 1 WHERE id = ?", (user_id,))
     else:
         cur.execute("INSERT INTO users VALUES(?, ?, 1, ?)", (user_id, username, convert_role(olymp_role)))
-
+    conn.commit()
 
 def get_users():
     return cur.execute("SELECT * FROM users").fetchall()
