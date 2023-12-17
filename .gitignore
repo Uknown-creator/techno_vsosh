@@ -1,0 +1,6 @@
+database/data.db
+config.py
+tmp.log
+venv
+.idea
+__pycache__
