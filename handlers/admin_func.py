@@ -4,14 +4,10 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
-# from aiogram.methods.send_animation import SendAnimation
 
 from database import commands
 
 from keyboards.questions import yes_or_no
-
-# from keyboards.questions import select_role, select_stage
-# import emoji
 
 router = Router()
 
@@ -20,7 +16,7 @@ class News_State(StatesGroup):
     news_receive = State()
 
 
-# TODO: posting news, posting materials
+# TODO: posting materials
 @router.message(Command('admin'))
 async def admin_commands(message: Message):
     if commands.get_roles(message.chat.id)[0][0] == 1:

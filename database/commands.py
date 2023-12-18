@@ -18,6 +18,7 @@ def add_admin(user_id: int, username: str, olymp_role: str = "tt"):
         cur.execute("INSERT INTO users VALUES(?, ?, 1, ?)", (user_id, username, convert_role(olymp_role)))
     conn.commit()
 
+
 def get_users():
     return cur.execute("SELECT * FROM users").fetchall()
 
@@ -51,6 +52,21 @@ def get_roles(user_id: int):
     return res
 
 
+def get_types(user_id: int, direction: int):
+    olymp = get_roles(user_id)[0][1]
+    res = cur.execute('SELECT type FROM materials WHERE olymp = ? and direction = ?', (olymp, direction)).fetchall()
+    return res
 
 
-# if __name__ == "__main__":
+def get_headers(user_id: int, direction: int, type_of_material: str):
+    olymp = get_roles(user_id)[0][1]
+    res = cur.execute('SELECT header FROM materials WHERE olymp = ? and direction = ? and type = ?',
+                      (olymp, direction, type_of_material)).fetchall()
+    return res
+
+
+def get_materials(header: str):
+    res = cur.execute(
+        """SELECT material FROM materials WHERE header = ?""",
+        (header,)).fetchall()
+    return res

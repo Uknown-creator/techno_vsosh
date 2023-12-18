@@ -41,9 +41,3 @@ async def query(callback: types.CallbackQuery):
     )
     await callback.answer()
 
-
-@router.message(F.text.lower() == "теория")
-async def materials(message: Message):
-    await message.answer(emoji.emojize("Держи жабу\n:frog:"))
-    # await message.answer(f"А я знаю, что ты {commands.convert_role(commands.get_roles(message.chat.id)[0][1])}")
-    # await SendAnimation
