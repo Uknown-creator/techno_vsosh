@@ -1,9 +1,8 @@
 from aiogram import Router, F, types
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardRemove
-from aiogram.methods.send_animation import SendAnimation
-from aiogram import methods
+from aiogram.types import Message
 from database import commands
+from database.commands import is_teacher, is_admin
 from keyboards.questions import select_role, select_stage
 import emoji
 
@@ -16,11 +15,19 @@ async def cmd_start(message: Message):
         emoji.emojize(":red_heart:Привет! \n\nЯ - бот, созданный для помощи тебе к подготовке к этапам по технологии"),
     )
     if commands.check_existing(message.chat.id):
-        roles = commands.get_roles(message.chat.id)[0]
+        # roles = commands.get_role(message.chat.id)
         await message.answer(
             "Поздравляем, теперь вам доступны материалы для подготовки по вашему направлению\n\nВоспользуйтесь нижней "
-            "клавиатурой для выбора материалов", reply_markup=select_stage()
+            "клавиатурой для выбора материалов.\nЕсли понадобится её скрыть, введите /hide", reply_markup=select_stage()
         )
+        if is_teacher(message.chat.id):
+            await message.answer(
+                "Пользуясь полномочиями учителя, вы можете загружать материалы при помощи команды /post_material"
+            )
+        elif is_admin(message.chat.id):
+            await message.answer(
+                "Пользуясь полномочиями администратора, вы можете выполнять различные шалости. См. /admin"
+            )
     else:
         # auth
 
@@ -40,10 +47,3 @@ async def query(callback: types.CallbackQuery):
         "клавиатурой для выбора материалов", reply_markup=select_stage()
     )
     await callback.answer()
-
-
-@router.message(F.text.lower() == "теория")
-async def materials(message: Message):
-    await message.answer(emoji.emojize("Держи жабу\n:frog:"))
-    # await message.answer(f"А я знаю, что ты {commands.convert_role(commands.get_roles(message.chat.id)[0][1])}")
-    # await SendAnimation
