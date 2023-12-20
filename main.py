@@ -1,15 +1,14 @@
 import asyncio
 import logging
-import argparse
-import os
+from os import remove, path
 
 from config import BOT_TOKEN
 
 from aiogram import Bot, Dispatcher
 from handlers import questions, admin_func, materials
 
-if os.path.exists("tmp.log"):
-    os.remove("tmp.log")
+if path.exists("tmp.log"):
+    remove("tmp.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
