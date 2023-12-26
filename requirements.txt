@@ -3,3 +3,4 @@ emoji
 pydantic~=2.1.1
 octodiary
 requests
+GitPython

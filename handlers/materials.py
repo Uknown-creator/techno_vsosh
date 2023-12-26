@@ -3,7 +3,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
-from database.commands import get_materials, get_role, is_admin, is_teacher, post_materials
+from database.commands import get_materials_by_header, get_role, is_admin, is_teacher, post_materials
 from keyboards.materials import select_olymp, select_stage, select_type, select_header_by_user
 from emoji import emojize
 
@@ -16,7 +16,14 @@ class MaterialStates(StatesGroup):
     material_receive = State()
 
 
-# TODO: cancelling selecting materials when its empty
+@router.callback_query(F.data == "cancel")
+async def cal_cancel(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.answer("Команда отменена.")
+    await callback.answer()
+    await callback.message.delete()
+
+
 @router.message(F.text.lower() == "теория")
 async def theory(message: Message):
     olymp = get_role(message.chat.id)[0][0]
@@ -57,7 +64,7 @@ async def headers(callback: types.CallbackQuery):
 async def materials(callback: types.CallbackQuery):
     data = callback.data.split('_')[1:]
     header = data[0]
-    await callback.message.answer(str(get_materials(header)[0][0]))
+    await callback.message.answer(str(get_materials_by_header(header)[0][0]))
     await callback.answer()
 
 
@@ -147,3 +154,8 @@ async def text_received(message: Message, state: FSMContext):
         await message.answer(
             f"Ошибка!\n {e}"
         )
+
+
+@router.message(Command('show_materials'))
+def show_materials():
+    pass

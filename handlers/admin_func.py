@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 
-from database.commands import is_admin, add_admin, get_users, convert_role, add_teacher
+from database.commands import is_admin, add_admin, get_users, convert_role, add_teacher, get_materials
 from keyboards.questions import yes_or_no
 
 router = Router()
@@ -18,7 +18,7 @@ class AdminStates(StatesGroup):
 async def admin_commands(message: Message):
     if is_admin(message.chat.id):
         await message.answer(
-            "Приветствую, администратор!\n\n/post_material - добавить материал/post_news - Запостить "
+            "Приветствую, администратор!\n\n/post_material - добавить материал\n/post_news - Запостить "
             "новость\n/add_admin {id}- Добавить"
             "админа\n/return_users - Вывод пользователей"
             "жабобят\n/logs - Логи\n\nБот работает"
@@ -148,3 +148,9 @@ async def logs(
             for line in (f.readlines()[-lines:]):
                 res += f"{line}\n"
         await message.answer(res)
+
+
+@router.message(Command('get_materials'))
+async def get_materials(message: Message):
+    if is_admin(message.chat.id):
+        await message.answer(get_materials())

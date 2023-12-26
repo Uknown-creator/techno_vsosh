@@ -5,7 +5,7 @@ from os import remove, path
 from config import BOT_TOKEN
 
 from aiogram import Bot, Dispatcher
-from handlers import questions, admin_func, materials
+from handlers import questions, admin_func, materials, authorization
 
 if path.exists("tmp.log"):
     remove("tmp.log")
@@ -20,7 +20,7 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
-    dp.include_routers(questions.router, admin_func.router, materials.router)
+    dp.include_routers(questions.router, admin_func.router, materials.router, authorization.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)

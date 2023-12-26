@@ -1,10 +1,18 @@
 import sqlite3
 from config import admins
+from git import Repo
 
 conn = sqlite3.connect("database/data.db")
 cur = conn.cursor()
 
 
+# def get_hash():
+#     try:
+#         hash_ = Repo().head.commit.hexsha
+#         return f'<a href=https://github.com/Uknown-creator/techno_vsosh/commit/{hash_}">#{hash_[:7]}</a>'
+#     except Exception:
+#         return "<a href='https://github.com/Uknown-creator/techno_vsosh'>#last-commit</a>"
+#
 def add_user(user_id: int, username: str, olymp_role: str):
     if not check_existing(user_id):
         cur.execute("INSERT INTO users VALUES(?, ?, 0, ?)", (user_id, username, convert_role(olymp_role)))
@@ -25,7 +33,7 @@ def is_admin(user_id: int):
 
 def is_teacher(user_id: int):
     res = cur.execute("SELECT teacher FROM users WHERE id = ?", (user_id,)).fetchall()
-    if len(res[0]) > 0:
+    if res[0][0] == '1':
         return True
     return False
 
@@ -79,19 +87,31 @@ def get_headers_byid(content_id: int):  # Necessary?
 
 def get_content_id(user_id: int, direction: int, type_of_material: str, header: str):  # Necessary?
     olymp = get_role(user_id)[0][0]
-    res = cur.execute('SELECT id FROM materils WHERE olymp = ? and direction = ? and type = ? and header = ?',
+    res = cur.execute('SELECT id FROM materials WHERE olymp = ? and direction = ? and type = ? and header = ?',
                       (olymp, direction, type_of_material, header)).fetchall()
     return res
 
 
-def get_materials(header: str):
+def get_materials_by_header(header: str):
     res = cur.execute(
         """SELECT material FROM materials WHERE header = ?""",
         (header,)).fetchall()
     return res
 
 
+def get_materials():
+    res = cur.execute(
+        """SELECT * FROM materials"""
+    ).fetchall()
+    return res
+
+
 def post_materials(olymp, direction, type_of_material, header, material):
     cur.execute("INSERT INTO materials(olymp, direction, type, header, material) VALUES(?, ?, ?, ?, ?)",
                 (olymp, direction, type_of_material, header, material))
+    conn.commit()
+
+
+def delete_material(material_id):
+    cur.execute("""DELETE FROM materials WHERE id = ?""", (material_id,))
     conn.commit()

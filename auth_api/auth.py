@@ -29,12 +29,13 @@ async def handle_captcha(captcha: Captcha, api: AsyncWebAPI | AsyncMobileAPI):
 
 
 async def login_gosuslugi(
-        api: AsyncWebAPI | AsyncMobileAPI,
         login: str,
-        password: str
+        password: str,
+        api: AsyncWebAPI = AsyncWebAPI()
 ):
     response: bool | Captcha = await api.esia_login(login, password)
     if isinstance(response, bool):  # Требуется MFA код
+
         code_mfa = int(input("MFA Code: ").strip())  # запрашиваем у пользователя код (SMS/TOTP)
         response2 = await api.esia_enter_mfa(code=code_mfa)
         TOKEN = response2 if isinstance(response2, str) else await handle_captcha(response2)
