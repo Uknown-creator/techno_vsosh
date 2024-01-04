@@ -1,4 +1,3 @@
-import logging
 from emoji import emojize
 
 from aiogram import types
@@ -10,12 +9,7 @@ def select_header_by_user(olymp: int, direction: int, type_of_material: str = No
     """ Returns headers or types of materials """
     builder = InlineKeyboardBuilder()
     if type_of_material is None:
-        # Check for len of list
         for header_type in get_types(olymp, direction):
-            if len(f"types_{header_type[0]}".encode('utf-8')) >= 64:  # Can be deleted after checking len
-                logging.warning("Header_type callback data more then 64, abort")
-                logging.warning(f"{olymp} {direction} {header_type}")
-                return
             builder.add(types.InlineKeyboardButton(
                 text=f"{header_type[0]}",
                 callback_data=f"types_{header_type[0]}"
@@ -28,10 +22,6 @@ def select_header_by_user(olymp: int, direction: int, type_of_material: str = No
         return builder.as_markup()
     else:
         for header in get_headers(olymp, direction, type_of_material):
-            if len(f"header_{header[0]}".encode('utf-8')) >= 64:
-                logging.warning("Header callback data more then 64, abort")
-                logging.warning(f"{olymp} {direction} {type_of_material} {header}")
-                return
             builder.add(types.InlineKeyboardButton(
                 text=f"{header[0]}",
                 callback_data=f"header_{header[0]}"
