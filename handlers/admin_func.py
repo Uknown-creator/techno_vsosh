@@ -1,10 +1,13 @@
+import logging
+
 from aiogram import Router, F, types, Bot
 from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 
-from database.commands import is_admin, add_admin, get_users, convert_role, add_teacher, get_materials
+from database.users import is_admin, add_admin, get_users, convert_role, add_teacher, get_hash, add_user
+from database.materials import get_materials, delete_material
 from keyboards.questions import yes_or_no
 
 router = Router()
@@ -19,10 +22,16 @@ async def admin_commands(message: Message):
     if is_admin(message.chat.id):
         await message.answer(
             "Приветствую, администратор!\n\n/post_material - добавить материал\n/post_news - Запостить "
-            "новость\n/add_admin {id}- Добавить"
-            "админа\n/return_users - Вывод пользователей"
-            "жабобят\n/logs - Логи\n\nБот работает"
+            "новость\n/add_admin {id} - Добавить админа\n/add_user {id} {username} {olymp_role} - "
+            "добавить пользователя\n /return_users - Вывод пользователей"
+            "\n/logs - Логи\n/get_materials - вывод материалов\n/delete_material {id} - удаление материала по id"
+            f"\n\nТекущий коммит - {get_hash()}"
         )
+
+
+@router.message(Command('show_id'))
+async def show_id(message: Message):
+    await message.answer(f"Ваш ID - {message.chat.id}")
 
 
 @router.message(Command('add_admin'))
@@ -67,6 +76,24 @@ async def add_teacher(
             return
         await add_teacher(user_id)
         await message.answer("Готово")
+
+
+@router.message(Command('add_user'))
+async def user_add(message: Message, command: CommandObject):
+    if is_admin(message.chat.id):
+        if command.args is None:
+            await message.answer("Введи:\nID, username и olymp_role(ib/tt/kd/rt) в аргументах")
+        else:
+            try:
+                data = command.args.split()
+                add_user(int(data[0]), data[1], data[2])
+                await message.answer("Готово")
+                logging.info(f"Пользователь {data[0]} {data[1]} {data[2]} добавлен")
+            except ValueError:
+                await message.answer(
+                    "Ошибка: неверный формат аргументов"
+                )
+                return
 
 
 @router.message(StateFilter(None), Command('post_news'))
@@ -123,10 +150,7 @@ async def users(message: Message):
 
 
 @router.message(Command('logs'))
-async def logs(
-        message: Message,
-        command: CommandObject
-):
+async def logs(message: Message, command: CommandObject):
     if is_admin(message.chat.id):
         if command.args is None:
             lines = 10
@@ -151,6 +175,28 @@ async def logs(
 
 
 @router.message(Command('get_materials'))
-async def get_materials(message: Message):
+async def show_all_materials(message: Message):
     if is_admin(message.chat.id):
-        await message.answer(get_materials())
+        try:
+            res = ''
+            for i in get_materials():
+                while len(res.encode('utf-8')) < 64:
+                    res += f"{i}\n"
+                await message.answer(str(res))
+        except Exception as e:
+            logging.error(f"Ошибка в get_materials - {e}")
+
+
+@router.message(Command('delete_material'))
+async def delete_materials(message: Message, command: CommandObject):
+    if is_admin(message.chat.id):
+        if command.args is None:
+            await message.answer("Ошибка! Не передан ID")
+            return
+        else:
+            try:
+                material_id = int(command.args)
+                delete_material(material_id)
+            except ValueError:
+                await message.answer("ID должен быть в виде цифры")
+        await message.answer("Готово.")

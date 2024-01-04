@@ -1,5 +1,6 @@
 from os import remove
 from emoji import emojize
+import logging
 
 from octodiary.asyncApi.myschool import AsyncWebAPI
 from octodiary.exceptions import APIError
@@ -11,7 +12,7 @@ from aiogram.types import Message, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from database.commands import is_teacher, is_admin, check_existing, add_user
+from database.users import is_teacher, is_admin, check_existing, add_user, get_hash
 
 from keyboards.questions import select_stage, select_role
 from keyboards.authorization import select_auth_type, cancel
@@ -30,6 +31,9 @@ class AuthStates(StatesGroup):
     manual_code_entering = State()
 
 
+""" Authorization functions (must be removed)"""
+
+
 async def handle_captcha(message: Message, state: FSMContext, data, captcha: Captcha, bot: Bot):
     if captcha.question:
         await message.answer(f"Введите ответ на вопрос: \n{str(captcha.question)}")
@@ -37,9 +41,9 @@ async def handle_captcha(message: Message, state: FSMContext, data, captcha: Cap
         await state.set_state(AuthStates.captcha_text_entering)
         await state.set_data(data)
     else:
-        with open(f"captcha_{message.chat.id}.png", "wb") as image:
+        with open(f"captchas/captcha_{message.chat.id}.png", "wb") as image:
             image.write(captcha.image_bytes)
-        photo = FSInputFile(f"captcha_{message.chat.id}.png")
+        photo = FSInputFile(f"captchas/captcha_{message.chat.id}.png")
         await message.answer("Решите капчу:")
         await bot.send_photo(chat_id=message.chat.id, photo=photo)
         data['response'] = captcha
@@ -74,7 +78,7 @@ async def check_living(message: Message, api: AsyncWebAPI):
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message):
+async def start(message: Message):
     await message.answer(
         emojize(":red_heart:Привет! \n\nЯ - бот, созданный для помощи тебе к подготовке к этапам по технологии"),
     )
@@ -99,12 +103,17 @@ async def cmd_start(message: Message):
         )
 
 
+""" Gosuslugi authorization """
+
+
 @router.callback_query(StateFilter(None), F.data == "auth_gosuslugi")
 async def mamont_auth(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Данные для авторизации не сохраняются, используется лишь токен для получения места "
+                                  "учебы.\nПосле завершения авторизации вам не придётся каждый раз вводить свои "
+                                  f"данные.\nПроект имеет открытый исходный код - {get_hash()}")
     await state.clear()
     await callback.message.answer(
-        "Пожалуйста, введите свой логин для авторизации на Госуслугах.\n\nДанные об авторизации у нас не "
-        "сохраняются.\nПроект имеет открытый исходный код - https://github.com/Uknown-creator/techno_vsosh",
+        "Пожалуйста, введите свой логин для авторизации на Госуслугах:",
         reply_markup=cancel()
     )
     await callback.answer()
@@ -118,8 +127,7 @@ async def login_entered(message: Message, state: FSMContext):
     data['login'] = message.text
     await state.clear()
     await message.answer(
-        "Введите свой пароль для авторизации на Госуслугах.\n\nДанные об авторизации у нас не "
-        "сохраняются.\nПроект имеет открытый исходный код - https://github.com/Uknown-creator/techno_vsosh",
+        "Введите свой пароль для авторизации на Госуслугах:",
         reply_markup=cancel()
     )
     await state.set_state(AuthStates.password_entering)
@@ -166,6 +174,7 @@ async def totp_entered(message: Message, state: FSMContext, bot: Bot):
 
     except APIError as e:
         await message.answer("Возникла ошибка в API: ", str(e))
+        logging.error(f"Возникла ошибка в API\n{message.chat.id}, {e}")
 
 
 @router.message(AuthStates.captcha_text_entering)
@@ -181,7 +190,7 @@ async def handle_photo_captcha(message: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
     response = await data['response'].async_verify_captcha(message.text)
-    remove(f"captcha_{message.chat.id}.png")
+    remove(f"captchas/captcha_{message.chat.id}.png")
     await check_captcha_response(message, state, data, response)
 
 
@@ -190,8 +199,12 @@ async def query(callback: types.CallbackQuery):
     role = callback.data.split('_')[1]
     add_user(callback.message.chat.id, callback.message.chat.username, role)
     await callback.message.delete()
-    await callback.message.answer(
-        "Поздравляем, теперь вам доступны материалы для подготовки по вашему направлению\n\nВоспользуйтесь нижней "
-        "клавиатурой для выбора материалов", reply_markup=select_stage()
-    )
-    await callback.answer()
+    await start(callback.message)
+
+
+""" Manual authorization """
+
+
+@router.callback_query(StateFilter(None), F.data == "auth_manual")
+async def auth_manual(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Способ временно не работает")
