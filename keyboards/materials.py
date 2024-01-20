@@ -2,36 +2,9 @@ from emoji import emojize
 
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from database.materials import get_headers, get_types
+from database.materials import Materials
 
-
-def select_header_by_user(olymp: int, direction: int, type_of_material: str = None):
-    """ Returns headers or types of materials """
-    builder = InlineKeyboardBuilder()
-    if type_of_material is None:
-        for header_type in get_types(olymp, direction):
-            builder.add(types.InlineKeyboardButton(
-                text=f"{header_type[0]}",
-                callback_data=f"types_{header_type[0]}"
-            ))
-        builder.add(types.InlineKeyboardButton(
-            text=emojize(":cross_mark:Отмена"),
-            callback_data="cancel"
-        ))
-        builder.adjust(1)
-        return builder.as_markup()
-    else:
-        for header in get_headers(olymp, direction, type_of_material):
-            builder.add(types.InlineKeyboardButton(
-                text=f"{header[0]}",
-                callback_data=f"header_{header[0]}"
-            ))
-        builder.add(types.InlineKeyboardButton(
-            text=emojize(":cross_mark:Отмена"),
-            callback_data="cancel"
-        ))
-        builder.adjust(1)
-        return builder.as_markup()
+materials = Materials()
 
 
 def select_olymp():
@@ -60,7 +33,7 @@ def select_olymp():
     return builder.as_markup()
 
 
-def select_stage(olymp: int):
+def select_type(olymp: int):
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(
         text="Теория",
@@ -81,13 +54,29 @@ def select_stage(olymp: int):
     return builder.as_markup()
 
 
-def select_type(olymp: int, stage: int):
+def select_header(olymp: int, material_type: int):
     builder = InlineKeyboardBuilder()
-    list_of_types = list(set(get_types(olymp, stage)))
-    for header_type in list_of_types:
+    for header in list(set(materials.get_headers(olymp, material_type))):
+        print(header)
         builder.add(types.InlineKeyboardButton(
-            text=f"{header_type[0]}",
-            callback_data=f"type_{olymp}_{stage}_{header_type[0]}"
+            text=f"{header[0]}",
+            callback_data=f"header_{header[0]}"
+        ))
+    builder.add(types.InlineKeyboardButton(
+        text=emojize(":cross_mark:Отмена"),
+        callback_data="cancel"
+    ))
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def select_year(olymp: int, material_type: int, header: str):
+    builder = InlineKeyboardBuilder()
+    list_of_types = list(set(materials.get_years(olymp, material_type, header)))
+    for year in list_of_types:
+        builder.add(types.InlineKeyboardButton(
+            text=f"{year[0]}",
+            callback_data=f"year_{year[0]}"
         ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),

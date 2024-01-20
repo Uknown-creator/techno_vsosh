@@ -12,7 +12,8 @@ from aiogram.types import Message, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from database.users import is_teacher, is_admin, check_existing, add_user, get_hash
+from database.users import users
+from HASH import get_hash
 
 from keyboards.questions import select_stage, select_role
 from keyboards.authorization import select_auth_type, cancel
@@ -82,16 +83,16 @@ async def start(message: Message):
     await message.answer(
         emojize(":red_heart:Привет! \n\nЯ - бот, созданный для помощи тебе к подготовке к этапам по технологии"),
     )
-    if check_existing(message.chat.id):
+    if users.check_existing(message.chat.id):
         await message.answer(
             "Поздравляем, теперь вам доступны материалы для подготовки по вашему направлению\n\nВоспользуйтесь нижней "
             "клавиатурой для выбора материалов.", reply_markup=select_stage()
         )
-        if is_teacher(message.chat.id):
+        if users.is_teacher(message.chat.id):
             await message.answer(
                 "Пользуясь полномочиями учителя, вы можете загружать материалы при помощи команды /post_material"
             )
-        if is_admin(message.chat.id):
+        if users.is_admin(message.chat.id):
             await message.answer(
                 "Пользуясь полномочиями администратора, вы можете выполнять различные шалости. См. /admin"
             )
@@ -197,7 +198,7 @@ async def handle_photo_captcha(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("role_"))
 async def query(callback: types.CallbackQuery):
     role = callback.data.split('_')[1]
-    add_user(callback.message.chat.id, callback.message.chat.username, role)
+    users.add_user(callback.message.chat.id, callback.message.chat.username, role)
     await callback.message.delete()
     await start(callback.message)
 

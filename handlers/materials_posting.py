@@ -4,10 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 
-from database.users import is_admin, is_teacher
-from database.materials import post_materials, get_materials_by_userid
+from database.users import users
+from database.materials import materials
 from keyboards.authorization import cancel
-from keyboards.materials import select_olymp, select_stage, select_type, select_type_of_material
+from keyboards.materials import select_olymp, select_type, select_year, select_type_of_material
 
 from time import strftime
 
@@ -31,7 +31,7 @@ async def cal_cancel(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(Command('post_material'))
 async def post_material(message: Message):
-    if is_teacher(message.chat.id) or is_admin(message.chat.id):
+    if users.is_teacher(message.chat.id) or users.is_admin(message.chat.id):
         await message.answer(
             "Выбери:\nНаправление олимпиады,\nЭтап(теория/практика/проект)\n\nИспользуй клавиатуру снизу сообщения:",
             reply_markup=select_olymp()
@@ -41,7 +41,7 @@ async def post_material(message: Message):
 @router.callback_query(F.data.startswith('olymp_'))
 async def selecting_stage(callback: types.CallbackQuery):
     olymp = int(callback.data.split('_')[1])
-    await callback.message.edit_reply_markup(reply_markup=select_stage(olymp))
+    await callback.message.edit_reply_markup(reply_markup=select_type(olymp))
 
 
 @router.callback_query(StateFilter(None), F.data.startswith('stage_'))
@@ -132,7 +132,7 @@ async def material_text_received(message: Message, state: FSMContext):
     await state.clear()
     try:
         time_created = strftime("%H:%M:%S %d-%m-%Y")
-        post_materials(message.chat.id, time_created, olymp, stage, header_type, header, material)
+        materials.post_materials(message.chat.id, time_created, olymp, stage, header_type, header, material)
         await message.answer("Задания загрузились!")
     except Exception as e:
         await message.answer(
@@ -151,7 +151,7 @@ async def material_file_received(message: Message, state: FSMContext):
     try:
         file_id = message.document.file_id
         time_created = strftime("%H:%M:%S %d-%m-%Y")
-        post_materials(message.chat.id, time_created, olymp, stage, header_type, header, f"file_{file_id}")
+        materials.post_materials(message.chat.id, time_created, olymp, stage, header_type, header, f"file_{file_id}")
         await message.answer("Задания загрузились!")
     except Exception as e:
         await message.answer(f"Ошибка!\n{e}")
@@ -159,5 +159,5 @@ async def material_file_received(message: Message, state: FSMContext):
 
 @router.message(Command('show_materials'))
 async def show_materials(message: Message):
-    if is_teacher(message.chat.id) or is_admin(message.chat.id):
-        await message.answer(get_materials_by_userid(message.chat.id))
+    if users.is_teacher(message.chat.id) or users.is_admin(message.chat.id):
+        await message.answer(materials.get_materials_by_userid(message.chat.id))
