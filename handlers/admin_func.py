@@ -4,11 +4,14 @@ from aiogram import Router, F, types, Bot
 from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message
+from aiogram.types import Message, FSInputFile
+from aiogram.utils.deep_linking import create_start_link, decode_payload
 
-from HASH import get_hash
 from database.users import users
 from database.materials import materials
+from database.invites import invites
+
+from HASH import get_hash
 from keyboards.questions import yes_or_no
 
 router = Router()
@@ -23,9 +26,9 @@ async def admin_commands(message: Message):
     if users.is_admin(message.chat.id):
         await message.answer(
             "Приветствую, администратор!\n\n/post_material - добавить материал\n/post_news - Запостить "
-            "новость\n/add_admin {id} - Добавить админа\n/add_user {id} {username} {olymp_role} - "
-            "добавить пользователя\n /return_users - Вывод пользователей"
-            "\n/logs - Логи\n/get_materials - вывод материалов\n/delete_material {id} - удаление материала по id"
+            "новость\n/add_user {id} {username} {olymp_role} - "
+            "добавить пользователя\n/return_users - Вывод пользователей"
+            "\n/logs - Логи\n/get_database - отправка базы данных\n/delete_material {id} - удаление материала по id"
             f"\n\nТекущий коммит - {get_hash()}"
         )
 
@@ -33,28 +36,6 @@ async def admin_commands(message: Message):
 @router.message(Command('show_id'))
 async def show_id(message: Message):
     await message.answer(f"Ваш ID - {message.chat.id}")
-
-
-@router.message(Command('add_admin'))
-async def add_admin(
-        message: Message,
-        command: CommandObject
-):
-    if users.is_admin(message.chat.id):
-        if command.args is None:
-            await message.answer(
-                "Ошибка! Введите аргумент ID"
-            )
-            return
-        try:
-            user_id = int(command.args)
-        except ValueError:
-            await message.answer(
-                "Ошибка: неверно переданы аргументы. Пример:\n/add_admin {ID человека}"
-            )
-            return
-        await add_admin(user_id)
-        await message.answer("Готово.")
 
 
 @router.message(Command('add_teacher'))
@@ -97,6 +78,25 @@ async def user_add(message: Message, command: CommandObject):
                 return
 
 
+@router.message(Command('invite'))
+async def invite(message: Message, command: CommandObject, bot: Bot):
+    if users.is_teacher(message.chat.id) or users.is_admin(message):
+        if command.args is None:
+            await message.answer("Ошибка: необходимо указать код от ученика.\nНапример: /invite 00000000")
+            return
+        else:
+            try:
+                user_id = int(command.args)
+            except ValueError:
+                await message.answer(
+                    "Ошибка: неверно переданы аргументы.\nПример правильной передачи: /invite 00000000"
+                )
+                return
+        invites.add_invite(message.chat.id)
+        invite_code = invites.get_invite(message.chat.id)
+        link = await create_start_link(bot, invite_code, encode=True)
+
+
 @router.message(StateFilter(None), Command('post_news'))
 async def broadcast(message: Message, state: FSMContext):
     if users.is_admin(message.chat.id):
@@ -135,7 +135,7 @@ async def news_decline(callback: types.CallbackQuery):
 
 
 @router.message(Command('return_users'))
-async def users(message: Message):
+async def get_users(message: Message):
     if users.is_admin(message.chat.id):
         res = ''
         for user in users.get_users():
@@ -175,16 +175,12 @@ async def logs(message: Message, command: CommandObject):
         await message.answer(res)
 
 
-@router.message(Command('get_materials'))
+@router.message(Command('get_database'))
 async def show_all_materials(message: Message):
     if users.is_admin(message.chat.id):
         try:
-            res = ''
-            for i in users.get_materials():
-                while len(res.encode('utf-8')) < 64:
-                    res += f"{i}\n"
-                await message.answer(str(res))
-                res = ''
+            data = FSInputFile("database/data.db")
+            await message.answer_document(data)
         except Exception as e:
             logging.error(f"Ошибка в get_materials - {e}")
 

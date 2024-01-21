@@ -7,7 +7,7 @@ from aiogram.types import Message
 from database.users import users
 from database.materials import materials
 from keyboards.authorization import cancel
-from keyboards.materials import select_olymp, select_type, select_year, select_type_of_material
+from keyboards.materials import select_olymp, select_type, select_year, select_type_of_material, select_header
 
 from time import strftime
 
@@ -15,8 +15,8 @@ router = Router()
 
 
 class MaterialStates(StatesGroup):
-    types_receive = State()
     headers_receive = State()
+    years_receive = State()
     material_text_receive = State()
     material_document_receive = State()
 
@@ -39,63 +39,70 @@ async def post_material(message: Message):
 
 
 @router.callback_query(F.data.startswith('olymp_'))
-async def selecting_stage(callback: types.CallbackQuery):
+async def callback_olymp_received(callback: types.CallbackQuery):
     olymp = int(callback.data.split('_')[1])
     await callback.message.edit_reply_markup(reply_markup=select_type(olymp))
 
 
-@router.callback_query(StateFilter(None), F.data.startswith('stage_'))
-async def selecting_type(callback: types.CallbackQuery, state: FSMContext):
-    olymp, stage = int(callback.data.split('_')[1]), int(callback.data.split('_')[2])
+@router.callback_query(StateFilter(None), F.data.startswith('type_'))
+async def callback_type_received(callback: types.CallbackQuery, state: FSMContext):
+    olymp, material_type = int(callback.data.split('_')[1]), int(callback.data.split('_')[2])
     await callback.answer()
     await callback.message.answer(
-        "Напиши тип материала(задания/ответы/пз)\nИли выберите из текущих:",  # Проверка на длину!!!
-        reply_markup=select_type(olymp, stage))
-    await state.set_state(MaterialStates.types_receive)
-    data = await state.get_data()
-    data['olymp'] = olymp
-    data['stage'] = stage
-    await state.set_data(data)
+        "Напиши название для материала(задания/ответы/пз)\nИли выбери из текущих:",
+        reply_markup=select_header(olymp, material_type))
+    await state.clear()
+    await state.set_state(MaterialStates.headers_receive)
+    await state.update_data(olymp=olymp, material_type=material_type)
 
 
-@router.callback_query(F.data.startswith('type_'))
-async def chosen_type(callback: types.CallbackQuery, state: FSMContext):
+@router.callback_query(F.data.startswith('header_'))
+async def callback_header_received(callback: types.CallbackQuery, state: FSMContext):
     callback_data = callback.data.split('_')
     data = await state.get_data()
     await state.clear()
     await callback.answer()
-    await callback.message.answer("Отлично, теперь введите название заголовка для материала:\nПостарайтесь сделать "
-                                  "уникальный заголовок для материала, включая в него направление/год/т.п.")
-    await state.set_state(MaterialStates.headers_receive)
-    data['olymp'] = callback_data[1]
-    data['stage'] = callback_data[2]
-    data['header_type'] = callback_data[3]
-    await state.set_data(data)
-
-
-@router.message(MaterialStates.types_receive)
-async def printing_type(message: Message, state: FSMContext):
-    if len(f"types_{message.text}".encode('utf-8')) > 64:
-        await message.answer("Пожалуйста, уменьшите текст! Команда отменена")
-        await state.clear()
-        return
-    data = await state.get_data()
-    data['header_type'] = message.text
-    await state.clear()
-    await message.answer("Отлично, теперь введите название заголовка для материала:\nПостарайтесь сделать "
-                         "уникальный заголовок для материала, включая в него направление/год/т.п.")
-    await state.set_state(MaterialStates.headers_receive)
+    await callback.message.answer("Введите год олимпиады(одно число) или выберите из предложенных "
+                                  "\nЕсли олимпиада 2022-2023, введите 2023", reply_markup=select_year())
+    await state.set_state(MaterialStates.years_receive)
+    data['header'] = callback_data[1]
     await state.set_data(data)
 
 
 @router.message(MaterialStates.headers_receive)
-async def headers_received(message: Message, state: FSMContext):  # Проверка на null строку/некорректный ввод
-    if len(f"header_{message.text}".encode('utf-8')) > 64:
-        await message.answer("Пожалуйста, уменьшите текст! Команда отменена")
-        await state.clear()
-        return
+async def header_received(message: Message, state: FSMContext):
     data = await state.get_data()
+    await state.clear()
     data['header'] = message.text
+    await state.clear()
+    await message.answer("Введите год олимпиады(одно число) или выберите из предложенных"
+                         "\nЕсли олимпиада 2022-2023, введите 2023")
+    await state.set_state(MaterialStates.years_receive)
+    await state.set_data(data)
+
+
+@router.callback_query(F.data.startswith('year_'))
+async def callback_years_received(callback: types.CallbackQuery, state: FSMContext):
+    callback_data = callback.data.split('_')
+    data = await state.get_data()
+    data['year'] = int(callback_data[1])
+    await state.clear()
+    await callback.message.answer(
+        "Остался последний штрих: загрузить сам материал. Выберите тип загружаемого материала:\n\n"
+        "Внимание! Если файл весит больше 20 мегабайт, то отправьте ссылку на него через облачное хранилище"
+        "(Яндекс диск и пр.)",
+        reply_markup=select_type_of_material()
+    )
+    await state.set_data(data)
+
+
+@router.message(MaterialStates.years_receive)
+async def years_received(message: Message, state: FSMContext):
+    data = await state.get_data()
+    if not message.text.isdigit():
+        await message.answer("Ошибка! Введите только число, без других символов.")
+        return
+    data['year'] = int(message.text)
     await state.clear()
     await message.answer(
         "Остался последний штрих: загрузить сам материал. Выберите тип загружаемого материала:\n\n"
@@ -110,6 +117,7 @@ async def headers_received(message: Message, state: FSMContext):  # Провер
 async def type_of_material(callback: types.CallbackQuery, state: FSMContext):
     callback_data = callback.data.split('_')
     data = await state.get_data()
+    await state.clear()
     if callback_data[1] == "text":
         await callback.message.answer("Введите текст:")
         await state.set_state(MaterialStates.material_text_receive)
@@ -125,14 +133,14 @@ async def type_of_material(callback: types.CallbackQuery, state: FSMContext):
 async def material_text_received(message: Message, state: FSMContext):
     data = await state.get_data()
     olymp = data['olymp']
-    stage = data['stage']
-    header_type = data['header_type']
+    material_type = data['material_type']
     header = data['header']
+    year = data['year']
     material = message.text
     await state.clear()
     try:
         time_created = strftime("%H:%M:%S %d-%m-%Y")
-        materials.post_materials(message.chat.id, time_created, olymp, stage, header_type, header, material)
+        materials.post_materials(message.chat.id, time_created, olymp, material_type, header, year, material)
         await message.answer("Задания загрузились!")
     except Exception as e:
         await message.answer(
@@ -144,14 +152,16 @@ async def material_text_received(message: Message, state: FSMContext):
 async def material_file_received(message: Message, state: FSMContext):
     data = await state.get_data()
     olymp = data['olymp']
-    stage = data['stage']
-    header_type = data['header_type']
+    material_type = data['material_type']
     header = data['header']
+    year = data['year']
     await state.clear()
     try:
         file_id = message.document.file_id
         time_created = strftime("%H:%M:%S %d-%m-%Y")
-        materials.post_materials(message.chat.id, time_created, olymp, stage, header_type, header, f"file_{file_id}")
+        materials.post_materials(
+            message.chat.id, time_created, olymp, material_type, header, year, f"file_{file_id}"
+        )
         await message.answer("Задания загрузились!")
     except Exception as e:
         await message.answer(f"Ошибка!\n{e}")

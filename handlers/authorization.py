@@ -11,6 +11,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.utils.deep_linking import create_start_link, decode_payload
 
 from database.users import users
 from HASH import get_hash
@@ -90,7 +91,8 @@ async def start(message: Message):
         )
         if users.is_teacher(message.chat.id):
             await message.answer(
-                "Пользуясь полномочиями учителя, вы можете загружать материалы при помощи команды /post_material"
+                "Пользуясь полномочиями учителя, вы можете загружать материалы при помощи команды /post_material\n"
+                "А также, вы можете приглашать учеников с помощью /invite"
             )
         if users.is_admin(message.chat.id):
             await message.answer(
@@ -101,6 +103,15 @@ async def start(message: Message):
             "Данный бот работает только для олимпиадников из Московской области :(\nДля подтверждения вы можете "
             "использовать вход через Госуслуги или ручное подтверждение от учителя(скорость зависит от реакции "
             "преподавателя)", reply_markup=select_auth_type()
+        )
+
+
+@router.message(Command("change_olymp"))
+async def change_olymp(message: Message):
+    if users.check_existing(message.chat.id):
+        await message.answer(
+            "Выбери свое направление",
+            reply_markup=select_role()
         )
 
 
@@ -156,6 +167,9 @@ async def password_entered(message: Message, state: FSMContext, bot: Bot):
             await handle_captcha(message, state, data, response, bot)
     except APIError as e:
         await message.answer("Возникла ошибка в API: ", str(e))
+        logging.error(f"Возникла ошибка в API\n{message.chat.id}, {e}")
+    except Exception as e:
+        logging.error("Непредвиденная ошибка в API password_entered: ", str(e))
 
 
 @router.message(AuthStates.totp_entering)
@@ -176,6 +190,8 @@ async def totp_entered(message: Message, state: FSMContext, bot: Bot):
     except APIError as e:
         await message.answer("Возникла ошибка в API: ", str(e))
         logging.error(f"Возникла ошибка в API\n{message.chat.id}, {e}")
+    except Exception as e:
+        logging.error("Непредвиденная ошибка в API totp_entered: ", str(e))
 
 
 @router.message(AuthStates.captcha_text_entering)
@@ -198,6 +214,8 @@ async def handle_photo_captcha(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("role_"))
 async def query(callback: types.CallbackQuery):
     role = callback.data.split('_')[1]
+    if users.check_existing(callback.message.chat.id):
+        users.change_role(callback.message.chat.id, role)
     users.add_user(callback.message.chat.id, callback.message.chat.username, role)
     await callback.message.delete()
     await start(callback.message)
@@ -207,5 +225,7 @@ async def query(callback: types.CallbackQuery):
 
 
 @router.callback_query(StateFilter(None), F.data == "auth_manual")
-async def auth_manual(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Способ временно не работает")
+async def auth_manual(callback: types.CallbackQuery):
+    await callback.message.answer("Попросите вашего преподавателя сгенерировать пригласительную ссылку, а затем "
+                                  "перейдите по ней\nПерешлите ему следующий код: ")
+    await callback.message.answer(str(callback.message.chat.id))

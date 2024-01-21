@@ -8,7 +8,7 @@ class Users:
     def __init__(self, db_file: str = "database/data.db"):
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
-        self.cursor.execute("""CREATE TABLE "users" (
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS "users" (
                             "id"	INTEGER NOT NULL UNIQUE,
                             "username"	TEXT,
                             "teacher"	INTEGER NOT NULL,
@@ -44,6 +44,13 @@ class Users:
             self.add_teacher(user_id, username, olymp_role)
             logging.info(f"Преподаватель {user_id} зарегистрирован")
             return
+
+    def change_role(self, user_id: int, olymp_role: str) -> None:
+        if self.check_existing(user_id):
+            role = self.convert_role(olymp_role)
+            self.cursor.execute("UPDATE users SET olymp_role = ? WHERE id = ?", (role, user_id))
+            self.connection.commit()
+            logging.info(f"Пользователь {user_id} изменил роль на {olymp_role}")
 
     def is_admin(self, user_id: int) -> bool:
         if self.check_existing(user_id):

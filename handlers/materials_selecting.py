@@ -75,11 +75,10 @@ async def years(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith('year_'), MaterialSelecting.header_selected)
-async def materials(callback: types.CallbackQuery, bot: Bot, state: FSMContext):
-    """ May not work if headers on different olympiads are same"""
+async def get_materials(callback: types.CallbackQuery, bot: Bot, state: FSMContext):
     data = await state.get_data()
     year = int(callback.data.split('_')[1])
-    material = materials.get_material(data['olymp'], data['direction'], data['header'], year)[0]
+    material = materials.get_material(data['olymp'], data['direction'], data['header'], year)
     if material.startswith("file_"):
         file = '_'.join(i for i in material.split('_')[1:])
         await bot.send_document(callback.message.chat.id, file)

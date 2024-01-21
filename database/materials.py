@@ -23,7 +23,7 @@ class Materials:
         res = self.cursor.execute(
             """SELECT * FROM materials"""
         ).fetchall()
-        return res[0]
+        return res
 
     """ Getting values from Materials"""
 
@@ -31,13 +31,17 @@ class Materials:
         res = self.cursor.execute(
             """SELECT header FROM materials WHERE olymp = ? and type = ?""",
             (olymp, material_type)).fetchall()
-        return res[0]
+        if len(res) > 0:
+            return res[0]
+        return []
 
     def get_years(self, olymp: int, material_type: int, header: str) -> list:
         res = self.cursor.execute(
-            """SELECT year FROM materials WHERE olymp = ? and type = ? and header = ?""",
+            """SELECT year FROM materials""",
             (olymp, material_type, header)).fetchall()
-        return res[0]
+        if len(res) > 0:
+            return res[0]
+        return []
 
     def get_material(self, olymp: int, material_type: int, header: str, year: int) -> str:
         res = self.cursor.execute(

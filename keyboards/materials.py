@@ -2,9 +2,7 @@ from emoji import emojize
 
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from database.materials import Materials
-
-materials = Materials()
+from database.materials import materials
 
 
 def select_olymp():
@@ -37,15 +35,15 @@ def select_type(olymp: int):
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(
         text="Теория",
-        callback_data=f"stage_{olymp}_0"
+        callback_data=f"type_{olymp}_0"
     ))
     builder.add(types.InlineKeyboardButton(
         text="Практика",
-        callback_data=f"stage_{olymp}_1"
+        callback_data=f"type_{olymp}_1"
     ))
     builder.add(types.InlineKeyboardButton(
         text="Проект",
-        callback_data=f"stage_{olymp}_2"
+        callback_data=f"type_{olymp}_2"
     ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),
@@ -57,10 +55,9 @@ def select_type(olymp: int):
 def select_header(olymp: int, material_type: int):
     builder = InlineKeyboardBuilder()
     for header in list(set(materials.get_headers(olymp, material_type))):
-        print(header)
         builder.add(types.InlineKeyboardButton(
-            text=f"{header[0]}",
-            callback_data=f"header_{header[0]}"
+            text=f"{header}",
+            callback_data=f"header_{header}"
         ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),
@@ -70,13 +67,13 @@ def select_header(olymp: int, material_type: int):
     return builder.as_markup()
 
 
-def select_year(olymp: int, material_type: int, header: str):
+def select_year():
     builder = InlineKeyboardBuilder()
-    list_of_types = list(set(materials.get_years(olymp, material_type, header)))
+    list_of_types = list(set(materials.get_years()))
     for year in list_of_types:
         builder.add(types.InlineKeyboardButton(
-            text=f"{year[0]}",
-            callback_data=f"year_{year[0]}"
+            text=f"{year}",
+            callback_data=f"year_{year}"
         ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),
