@@ -10,7 +10,7 @@ from handlers import admin_func, materials_selecting, authorization, materials_p
 if path.exists("tmp.log"):
     remove("tmp.log")
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     filename='tmp.log'
 )

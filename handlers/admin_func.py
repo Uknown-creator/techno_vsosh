@@ -4,10 +4,14 @@ from aiogram import Router, F, types, Bot
 from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message
+from aiogram.types import Message, FSInputFile
+from aiogram.utils.deep_linking import create_start_link
 
-from database.users import is_admin, add_admin, get_users, convert_role, add_teacher, get_hash, add_user
-from database.materials import get_materials, delete_material
+from database.invites import invites
+from database.users import users
+from database.materials import materials
+
+from HASH import get_hash
 from keyboards.questions import yes_or_no
 
 router = Router()
@@ -19,12 +23,13 @@ class AdminStates(StatesGroup):
 
 @router.message(Command('admin'))
 async def admin_commands(message: Message):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         await message.answer(
             "Приветствую, администратор!\n\n/post_material - добавить материал\n/post_news - Запостить "
-            "новость\n/add_admin {id} - Добавить админа\n/add_user {id} {username} {olymp_role} - "
-            "добавить пользователя\n /return_users - Вывод пользователей"
-            "\n/logs - Логи\n/get_materials - вывод материалов\n/delete_material {id} - удаление материала по id"
+            "новость\n/add_user {id} {username} {olymp_role} - "
+            "добавить пользователя\n/return_users - Вывод пользователей"
+            "\n/logs - Логи\n/get_database - отправка базы данных\n/delete_material {id} - удаление материала по id"
+            "\n/invite - Генерация пригласительной ссылки"
             f"\n\nТекущий коммит - {get_hash()}"
         )
 
@@ -34,34 +39,12 @@ async def show_id(message: Message):
     await message.answer(f"Ваш ID - {message.chat.id}")
 
 
-@router.message(Command('add_admin'))
-async def add_admin(
-        message: Message,
-        command: CommandObject
-):
-    if is_admin(message.chat.id):
-        if command.args is None:
-            await message.answer(
-                "Ошибка! Введите аргумент ID"
-            )
-            return
-        try:
-            user_id = int(command.args)
-        except ValueError:
-            await message.answer(
-                "Ошибка: неверно переданы аргументы. Пример:\n/add_admin {ID человека}"
-            )
-            return
-        await add_admin(user_id)
-        await message.answer("Готово.")
-
-
 @router.message(Command('add_teacher'))
 async def add_teacher(
         message: Message,
         command: CommandObject
 ):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         if command.args is None:
             await message.answer(
                 "Ошибка! Введите аргумент ID"
@@ -80,13 +63,13 @@ async def add_teacher(
 
 @router.message(Command('add_user'))
 async def user_add(message: Message, command: CommandObject):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         if command.args is None:
             await message.answer("Введи:\nID, username и olymp_role(ib/tt/kd/rt) в аргументах")
         else:
             try:
                 data = command.args.split()
-                add_user(int(data[0]), data[1], data[2])
+                users.add_user(int(data[0]), data[1], data[2])
                 await message.answer("Готово")
                 logging.info(f"Пользователь {data[0]} {data[1]} {data[2]} добавлен")
             except ValueError:
@@ -96,9 +79,19 @@ async def user_add(message: Message, command: CommandObject):
                 return
 
 
+@router.message(Command('invite'))
+async def invite(message: Message, bot: Bot):
+    if users.is_teacher(message.chat.id) or users.is_admin(message.chat.id):
+        invite_code = invites.add_invite()
+        link = await create_start_link(bot, invite_code, encode=True)
+        await message.answer(f"Отправьте эту ссылку ученику: {link}\n"
+                             f"Ссылка является одноразовой. Если потребуется пригласить нового ученика, "
+                             f"снова сгенерируйте ссылку")
+
+
 @router.message(StateFilter(None), Command('post_news'))
 async def broadcast(message: Message, state: FSMContext):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         await message.answer('Отправь новость:')
         await state.set_state(AdminStates.news_receive)
 
@@ -117,7 +110,7 @@ async def confirming_chosen_news(message: Message, state: FSMContext):
 async def news_confirm(callback: types.CallbackQuery, bot: Bot):
     msg = callback.message.answer("Начинаю рассылку")
     await callback.message.edit_reply_markup(None)
-    for user in get_users():
+    for user in users.get_users():
         user_id = user[0]
         try:
             await bot.send_message(user_id, callback.message.text)
@@ -134,10 +127,10 @@ async def news_decline(callback: types.CallbackQuery):
 
 
 @router.message(Command('return_users'))
-async def users(message: Message):
-    if is_admin(message.chat.id):
+async def get_users(message: Message):
+    if users.is_admin(message.chat.id):
         res = ''
-        for user in get_users():
+        for user in users.get_users():
             res += f"@{user[1]} - "
             res += f"ID: {user[0]}, "
 
@@ -145,13 +138,13 @@ async def users(message: Message):
                 res += "user, "
             else:
                 res += "teacher, "
-            res += f"{convert_role(user[-1])}\n"
+            res += f"{users.convert_role(user[-1])}\n"
         await message.answer(res)
 
 
 @router.message(Command('logs'))
 async def logs(message: Message, command: CommandObject):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         if command.args is None:
             lines = 10
         else:
@@ -174,29 +167,26 @@ async def logs(message: Message, command: CommandObject):
         await message.answer(res)
 
 
-@router.message(Command('get_materials'))
+@router.message(Command('get_database'))
 async def show_all_materials(message: Message):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         try:
-            res = ''
-            for i in get_materials():
-                while len(res.encode('utf-8')) < 64:
-                    res += f"{i}\n"
-                await message.answer(str(res))
+            data = FSInputFile("database/data.db")
+            await message.answer_document(data)
         except Exception as e:
             logging.error(f"Ошибка в get_materials - {e}")
 
 
 @router.message(Command('delete_material'))
 async def delete_materials(message: Message, command: CommandObject):
-    if is_admin(message.chat.id):
+    if users.is_admin(message.chat.id):
         if command.args is None:
             await message.answer("Ошибка! Не передан ID")
             return
         else:
             try:
                 material_id = int(command.args)
-                delete_material(material_id)
+                materials.delete_material(material_id)
             except ValueError:
                 await message.answer("ID должен быть в виде цифры")
         await message.answer("Готово.")

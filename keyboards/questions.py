@@ -31,7 +31,9 @@ def select_stage():
         [types.KeyboardButton(text="Практика")],
         [types.KeyboardButton(text="Проект")],
     ]
-    keyboard = types.ReplyKeyboardMarkup(keyboard=kb)
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb,
+                                         resize_keyboard=True,
+                                         input_field_placeholder="Выберите направление")
     return keyboard
 
 
