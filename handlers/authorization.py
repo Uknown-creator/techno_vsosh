@@ -1,4 +1,5 @@
 from os import remove
+
 from emoji import emojize
 import logging
 
@@ -7,12 +8,15 @@ from octodiary.exceptions import APIError
 from octodiary.types.captcha import Captcha
 
 from aiogram import Router, F, types, Bot
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.types import Message, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.utils.deep_linking import create_start_link, decode_payload
+from aiogram.utils.payload import decode_payload
 
+from database.invites import invites
+from database.login_tries import login_tries
+from database.used_gosuslugi import used_gosuslugi
 from database.users import users
 from HASH import get_hash
 
@@ -69,6 +73,11 @@ async def check_living(message: Message, api: AsyncWebAPI):
     res = await api.get_session_info()
     await message.answer("Токен получен.")
     if res.regional_auth == "msk":
+        person_id = res.person_id
+        if used_gosuslugi.check_existing(used_gosuslugi.hash_person_id(person_id)):
+            await message.answer("Ошибка! Пользователь с данной учётной записью уже зарегестрирован.")
+            return
+        used_gosuslugi.add_hash(person_id)
         await message.answer("Поздравляю, авторизация прошла успешна")
         await message.answer(
             "Выбери свое направление",
@@ -80,7 +89,7 @@ async def check_living(message: Message, api: AsyncWebAPI):
 
 
 @router.message(Command("start"))
-async def start(message: Message):
+async def start(message: Message, command: CommandObject):
     await message.answer(
         emojize(":red_heart:Привет! \n\nЯ - бот, созданный для помощи тебе к подготовке к этапам по технологии"),
     )
@@ -99,11 +108,22 @@ async def start(message: Message):
                 "Пользуясь полномочиями администратора, вы можете выполнять различные шалости. См. /admin"
             )
     else:
-        await message.answer(
-            "Данный бот работает только для олимпиадников из Московской области :(\nДля подтверждения вы можете "
-            "использовать вход через Госуслуги или ручное подтверждение от учителя(скорость зависит от реакции "
-            "преподавателя)", reply_markup=select_auth_type()
-        )
+        if command.args is None:
+            await message.answer(
+                "Данный бот работает только для олимпиадников из Московской области :(\nДля подтверждения вы можете "
+                "использовать вход через Госуслуги или через ссылку от преподавателя", reply_markup=select_auth_type()
+            )
+        else:
+            if login_tries.get_tries(message.chat.id) < 3:
+                code = decode_payload(command.args)
+                if invites.check_existing(code):
+                    invites.remove_invite(code)
+                    await message.answer("Выберите направление:", reply_markup=select_role())
+                else:
+                    login_tries.add_try(message.chat.id)
+                    await message.answer("Ссылка неверная! Попробуйте снова.")
+            else:
+                await message.answer("Ссылка неверная! Попробуйте снова.")
 
 
 @router.message(Command("change_olymp"))
@@ -198,8 +218,11 @@ async def totp_entered(message: Message, state: FSMContext, bot: Bot):
 async def handle_text_captcha(message: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
-    response = await data['response'].async_asnwer_captcha(message.text)
-    await check_captcha_response(message, state, data, response)
+    try:
+        response = await data['response'].async_asnwer_captcha(message.text)
+        await check_captcha_response(message, state, data, response)
+    except APIError:
+        await message.answer("Неверный ответ!")
 
 
 @router.message(AuthStates.captcha_photo_entering)
@@ -212,13 +235,13 @@ async def handle_photo_captcha(message: Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("role_"))
-async def query(callback: types.CallbackQuery):
+async def query(callback: types.CallbackQuery, command: CommandObject = CommandObject):
     role = callback.data.split('_')[1]
     if users.check_existing(callback.message.chat.id):
         users.change_role(callback.message.chat.id, role)
     users.add_user(callback.message.chat.id, callback.message.chat.username, role)
     await callback.message.delete()
-    await start(callback.message)
+    await start(callback.message, command)
 
 
 """ Manual authorization """
@@ -226,6 +249,6 @@ async def query(callback: types.CallbackQuery):
 
 @router.callback_query(StateFilter(None), F.data == "auth_manual")
 async def auth_manual(callback: types.CallbackQuery):
-    await callback.message.answer("Попросите вашего преподавателя сгенерировать пригласительную ссылку, а затем "
-                                  "перейдите по ней\nПерешлите ему следующий код: ")
-    await callback.message.answer(str(callback.message.chat.id))
+    await callback.message.answer(
+        "Попросите вашего преподавателя сгенерировать пригласительную ссылку, и перейдите по ней")
+    await callback.answer()

@@ -67,9 +67,9 @@ def select_header(olymp: int, material_type: int):
     return builder.as_markup()
 
 
-def select_year():
+def select_year(olymp: int, material_type: int, header: str):
     builder = InlineKeyboardBuilder()
-    list_of_types = list(set(materials.get_years()))
+    list_of_types = list(set(materials.get_years(olymp, material_type, header)))
     for year in list_of_types:
         builder.add(types.InlineKeyboardButton(
             text=f"{year}",

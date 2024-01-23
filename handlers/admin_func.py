@@ -5,11 +5,11 @@ from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, FSInputFile
-from aiogram.utils.deep_linking import create_start_link, decode_payload
+from aiogram.utils.deep_linking import create_start_link
 
+from database.invites import invites
 from database.users import users
 from database.materials import materials
-from database.invites import invites
 
 from HASH import get_hash
 from keyboards.questions import yes_or_no
@@ -29,6 +29,7 @@ async def admin_commands(message: Message):
             "новость\n/add_user {id} {username} {olymp_role} - "
             "добавить пользователя\n/return_users - Вывод пользователей"
             "\n/logs - Логи\n/get_database - отправка базы данных\n/delete_material {id} - удаление материала по id"
+            "\n/invite - Генерация пригласительной ссылки"
             f"\n\nТекущий коммит - {get_hash()}"
         )
 
@@ -79,22 +80,13 @@ async def user_add(message: Message, command: CommandObject):
 
 
 @router.message(Command('invite'))
-async def invite(message: Message, command: CommandObject, bot: Bot):
-    if users.is_teacher(message.chat.id) or users.is_admin(message):
-        if command.args is None:
-            await message.answer("Ошибка: необходимо указать код от ученика.\nНапример: /invite 00000000")
-            return
-        else:
-            try:
-                user_id = int(command.args)
-            except ValueError:
-                await message.answer(
-                    "Ошибка: неверно переданы аргументы.\nПример правильной передачи: /invite 00000000"
-                )
-                return
-        invites.add_invite(message.chat.id)
-        invite_code = invites.get_invite(message.chat.id)
+async def invite(message: Message, bot: Bot):
+    if users.is_teacher(message.chat.id) or users.is_admin(message.chat.id):
+        invite_code = invites.add_invite()
         link = await create_start_link(bot, invite_code, encode=True)
+        await message.answer(f"Отправьте эту ссылку ученику: {link}\n"
+                             f"Ссылка является одноразовой. Если потребуется пригласить нового ученика, "
+                             f"снова сгенерируйте ссылку")
 
 
 @router.message(StateFilter(None), Command('post_news'))

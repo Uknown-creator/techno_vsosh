@@ -37,7 +37,7 @@ class Materials:
 
     def get_years(self, olymp: int, material_type: int, header: str) -> list:
         res = self.cursor.execute(
-            """SELECT year FROM materials""",
+            """SELECT year FROM materials WHERE olymp = ? and type = ? and header = ?""",
             (olymp, material_type, header)).fetchall()
         if len(res) > 0:
             return res[0]

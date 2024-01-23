@@ -19,7 +19,7 @@ def select_auth_type():
         callback_data="auth_gosuslugi"
     ))
     builder.add(types.InlineKeyboardButton(
-        text="Ввести код от преподавателя",
+        text="Через преподавателя",
         callback_data="auth_manual"
     ))
     builder.adjust(1)
