@@ -56,8 +56,8 @@ def select_header(olymp: int, material_type: int):
     builder = InlineKeyboardBuilder()
     for header in list(set(materials.get_headers(olymp, material_type))):
         builder.add(types.InlineKeyboardButton(
-            text=f"{header}",
-            callback_data=f"header_{header}"
+            text=f"{header[0]}",
+            callback_data=f"header_{header[0]}"
         ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),
@@ -72,8 +72,8 @@ def select_year(olymp: int, material_type: int, header: str):
     list_of_types = list(set(materials.get_years(olymp, material_type, header)))
     for year in list_of_types:
         builder.add(types.InlineKeyboardButton(
-            text=f"{year}",
-            callback_data=f"year_{year}"
+            text=f"{int(year[0]) - 1}-{year[0]}",
+            callback_data=f"year_{year[0]}"
         ))
     builder.add(types.InlineKeyboardButton(
         text=emojize(":cross_mark:Отмена"),
