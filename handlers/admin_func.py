@@ -57,7 +57,7 @@ async def add_teacher(
                 "Ошибка: неверно переданы аргументы. Пример:\n/add_teacher {ID человека}"
             )
             return
-        await users.add_teacher(user_id)
+        users.add_teacher(user_id)
         await message.answer("Готово")
 
 
