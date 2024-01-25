@@ -47,26 +47,27 @@ async def callback_olymp_received(callback: types.CallbackQuery):
 @router.callback_query(StateFilter(None), F.data.startswith('type_'))
 async def callback_type_received(callback: types.CallbackQuery, state: FSMContext):
     olymp, material_type = int(callback.data.split('_')[1]), int(callback.data.split('_')[2])
-    await callback.answer()
     await callback.message.answer(
         "Напиши название для материала(задания/ответы/пз)\nИли выбери из текущих:",
         reply_markup=select_header(olymp, material_type))
     await state.clear()
     await state.set_state(MaterialStates.headers_receive)
     await state.update_data(olymp=olymp, material_type=material_type)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith('header_'))
 async def callback_header_received(callback: types.CallbackQuery, state: FSMContext):
     callback_data = callback.data.split('_')
     data = await state.get_data()
-    await state.clear()
-    await callback.answer()
-    await callback.message.answer("Введите год олимпиады(одно число) или выберите из предложенных "
-                                  "\nЕсли олимпиада 2022-2023, введите 2023", reply_markup=select_year())
-    await state.set_state(MaterialStates.years_receive)
     data['header'] = callback_data[1]
+    await state.clear()
+    await callback.message.answer("Введите год олимпиады(одно число) или выберите из предложенных "
+                                  "\nЕсли олимпиада 2022-2023, введите 2023",
+                                  reply_markup=select_year(data['olymp'], data['material_type'], data['header']))
+    await state.set_state(MaterialStates.years_receive)
     await state.set_data(data)
+    await callback.answer()
 
 
 @router.message(MaterialStates.headers_receive)
@@ -87,6 +88,11 @@ async def callback_years_received(callback: types.CallbackQuery, state: FSMConte
     data = await state.get_data()
     data['year'] = int(callback_data[1])
     await state.clear()
+    print(materials.check_existing(data['olymp'], data['material_type'], data['header'], data['year']))
+    if materials.check_existing(data['olymp'], data['material_type'], data['header'], data['year']):
+        await callback.message.answer("Ошибка! Материал с такими данными уже существует.")
+        await callback.answer()
+        return
     await callback.message.answer(
         "Остался последний штрих: загрузить сам материал. Выберите тип загружаемого материала:\n\n"
         "Внимание! Если файл весит больше 20 мегабайт, то отправьте ссылку на него через облачное хранилище"
@@ -94,6 +100,7 @@ async def callback_years_received(callback: types.CallbackQuery, state: FSMConte
         reply_markup=select_type_of_material()
     )
     await state.set_data(data)
+    await callback.answer()
 
 
 @router.message(MaterialStates.years_receive)
@@ -101,6 +108,9 @@ async def years_received(message: Message, state: FSMContext):
     data = await state.get_data()
     if not message.text.isdigit():
         await message.answer("Ошибка! Введите только число, без других символов.")
+        return
+    if materials.check_existing(data['olymp'], data['material_type'], data['header'], data['year']):
+        await message.answer("Ошибка! Материал с такими данными уже существует.")
         return
     data['year'] = int(message.text)
     await state.clear()

@@ -32,7 +32,7 @@ class Materials:
             """SELECT header FROM materials WHERE olymp = ? and type = ?""",
             (olymp, material_type)).fetchall()
         if len(res) > 0:
-            return res[0]
+            return res
         return []
 
     def get_years(self, olymp: int, material_type: int, header: str) -> list:
@@ -40,7 +40,7 @@ class Materials:
             """SELECT year FROM materials WHERE olymp = ? and type = ? and header = ?""",
             (olymp, material_type, header)).fetchall()
         if len(res) > 0:
-            return res[0]
+            return res
         return []
 
     def get_material(self, olymp: int, material_type: int, header: str, year: int) -> str:
@@ -51,7 +51,7 @@ class Materials:
 
     def get_materials_by_userid(self, author_id: int) -> list:
         res = self.cursor.execute("""SELECT * FROM materials WHERE author = ?""", (author_id,)).fetchall()
-        return res[0]
+        return res
 
     """ Checking functions """
 
@@ -61,6 +61,14 @@ class Materials:
             return True
         return False
 
+    def check_existing(self, olymp: int, material_type: int, header: str, year: int) -> bool:
+        res = self.cursor.execute("""
+        SELECT * FROM materials WHERE olymp = ? and type = ? and header = ? and year = ?
+        """, (olymp, material_type, header, year)).fetchall()
+        print(res)
+        if len(res) != 0:
+            return True
+        return False
     """ Posting and deleting """
 
     def post_materials(self, author: int, date_created: str,
